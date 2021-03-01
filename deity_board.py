@@ -409,6 +409,15 @@ class Board:
 
     def get_tile(self, coord: Tuple[int, int]) -> Tile:
         return self.board[coord[1]][coord[0]]
+
+    def get_character_on_board(self) -> List[Character]:
+        char = []
+        for i in range(self.height):
+            for j in range(self.width):
+                if self.board[i][j].character is not None:
+                    char.append(self.board[i][j].character)
+        return char
+
 if __name__ == '__main__':
     b = Board()
     b.create_base_p1((1, 7))

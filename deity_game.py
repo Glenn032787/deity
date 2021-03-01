@@ -7,6 +7,10 @@ from random import shuffle
 
 POSSIBLE_ACTION = {'move', 'spell', 'attack', 'info', 'skip'}
 
+TILE_DECK = (['fort'] * NUM_FORT) + (['water'] * NUM_WATER) + \
+            (['mountain'] * NUM_MOUNTAIN) + (['forest'] * NUM_FOREST) + \
+            (['faith'] * NUM_FAITH)
+
 
 class Player:
     name: str
@@ -95,6 +99,7 @@ class Deity:
             if self.check_win():
                 break
 
+            # Player makes their actions
             while action_left != 0:
                 print(f'\n{p.name}: {action_left} action remaining')
                 while True:
@@ -134,10 +139,13 @@ class Deity:
                         action_left = 0
                         break
 
+                    # End of each action, check if any
+                    # character is dead and remove from board
+                    self.remove_character()
+
                 if self.check_win() is not None:
                     break
 
-            # Reset characters
             if self.check_win() is not None:
                 break
 
@@ -598,6 +606,12 @@ class Deity:
             tile = self.board.get_tile(coord)
             if tile.player_base == opponent.number:
                 tile.dead_base = True
+
+    def remove_character(self) -> None:
+        char_board = self.board.get_character_on_board()
+        for char in char_board:
+            if not char.is_live():
+                self.board.remove_character(char)
 
 
 # === Helper Functions ===

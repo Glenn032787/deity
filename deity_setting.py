@@ -1,4 +1,4 @@
-# Number of deity per player
+# Number of deity per player (max 4)
 MAX_CHARACTER = 2
 
 # Size of board
@@ -14,9 +14,6 @@ NUM_WATER = 4
 NUM_MOUNTAIN = 4
 NUM_FOREST = 4
 NUM_FAITH = 6
-TILE_DECK = (['fort'] * NUM_FORT) + (['water'] * NUM_WATER) + \
-            (['mountain'] * NUM_MOUNTAIN) + (['forest'] * NUM_FOREST) + \
-            (['faith'] * NUM_FAITH)
 
 # Number of tiles players draw at the ned of turn
 NUM_TILE_PLACE = 3
