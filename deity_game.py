@@ -103,6 +103,7 @@ class Deity:
             while action_left != 0:
                 print(f'\n{p.name}: {action_left} action remaining')
                 while True:
+                    self.remove_character() # Removes dead character
                     action = input('Choose action (move, '
                                    'attack, spell, info, skip): ')
                     action = action.lower()
@@ -138,10 +139,6 @@ class Deity:
                     elif action == 'skip':
                         action_left = 0
                         break
-
-                    # End of each action, check if any
-                    # character is dead and remove from board
-                    self.remove_character()
 
                 if self.check_win() is not None:
                     break
@@ -209,7 +206,9 @@ class Deity:
             # Get range and coordinates of character
             p1_coord = self.board.get_char_location(curr_char)
             range_ = curr_char.range
-            if self.board.get_tile(p1_coord).terrain == 'fort':
+            terrain = self.board.get_tile(p1_coord).terrain
+
+            if (terrain == 'fort' or terrain == 'base') and not curr_char.fly:
                 range_ += 1
 
             # Check if character is in range to attack other character
@@ -446,8 +445,10 @@ class Deity:
                     print('Type 2 or 4 int')
             except NotPossibleRoad:
                 print('\nInvalid road. Roads must be adjacent to base')
+                continue
             except ValueError:
                 print('\nPlease type integers only (e.g 1, 7)')
+                continue
 
     def choose_character(self) -> None:
         subclass = Character.__subclasses__()
@@ -478,9 +479,11 @@ class Deity:
                 except NotValidSpawn:
                     print('Not valid spawn point, '
                           'Deity must spawn in your base')
+                    continue
                 except TileAlreadyHaveCharacter:
                     print("Tile already have deity, "
                           "choose another spawn point")
+                    continue
 
     def check_win(self) -> Union[None, Player]:
         if len(self.player1.live_character()) == 0 \
@@ -635,7 +638,7 @@ def _list_character_remaining(subclass: List[Character], player: Player) -> \
     while True:
         try:
             char_index = int(input(f'{player.name} choose deity '
-                                   f'(Type number): \n'))
+                                   f'(Type number): '))
             character = subclass[char_index]
             subclass.remove(subclass[char_index])
             return character, subclass
@@ -684,3 +687,9 @@ if __name__ == "__main__":
     b.board[1][1].character = d.player2.character[4]
 
     d.play(True)
+
+# TODO Sudden death
+# TODO Shrinking ring insta dead
+# TODO Sudden death auto draw faith
+
+

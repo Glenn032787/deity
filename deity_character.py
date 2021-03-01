@@ -88,6 +88,11 @@ class Test_Vincent(Character):
         super().__init__(id_, 3, 3, 10, 'range')
 
 
+class Test_One_health(Character):
+    def __init__(self, id_):
+        super().__init__(id_, 1, 3, 10, 'range')
+
+
 if __name__ == '__main__':
     a = Test_Isis(1)
     b = Test_Zeus(2)

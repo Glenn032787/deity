@@ -418,6 +418,19 @@ class Board:
                     char.append(self.board[i][j].character)
         return char
 
+    def check_full_board(self) -> bool:
+        for i in range(self.height):
+            for j in range(self.width):
+                tile = self.board[i][j]
+                if tile.terrain is None:
+                    return False
+        return True
+
+    def border_closing(self) -> None:
+        raise NotImplementedError
+
+
+
 if __name__ == '__main__':
     b = Board()
     b.create_base_p1((1, 7))
@@ -425,4 +438,3 @@ if __name__ == '__main__':
     b.create_big_road(1, (1, 5))
     b.create_big_road(2, (5, 0), (5, 1))
     b.print()
-
