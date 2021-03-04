@@ -80,17 +80,32 @@ class Test_Isis(Character):
 
 class Test_Sam(Character):
     def __init__(self, id_):
-        super().__init__(id_, 3, 10, 3, 'range')
+        super().__init__(id_, 3, float('inf'), 3, 'range')
+
+    def get_info(self):
+        info = super().get_info()
+        info += 'Test Character, has infinite range\n'
+        return info
 
 
 class Test_Vincent(Character):
     def __init__(self, id_):
-        super().__init__(id_, 3, 3, 10, 'range')
+        super().__init__(id_, 3, 3, float('inf'), 'range')
+
+    def get_info(self):
+        info = super().get_info()
+        info += 'Test Character, has infinite movement\n'
+        return info
 
 
 class Test_One_health(Character):
     def __init__(self, id_):
         super().__init__(id_, 1, 3, 10, 'range')
+
+    def get_info(self):
+        info = super().get_info()
+        info += 'Test Character, has one health\n'
+        return info
 
 
 if __name__ == '__main__':

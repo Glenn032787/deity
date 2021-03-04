@@ -64,15 +64,18 @@ class Board:
         """
         Print out the board
         """
+        width = self.width
+        height = self.height
+
         print('')
         print(" ", end='')
-        for i in range(self.width):
+        for i in range(width):
             print(f' {i}', end='')
         print('')
-        for i in range(self.height):
-            print("--" * self.width + "-")
+        for i in range(height):
+            print("--" * width + "-")
             print(i, end='')
-            for j in range(self.width):
+            for j in range(width):
                 if self.board[i][j].character is not None:
                     char_id = self.board[i][j].character.id
                     print(f"|{char_id}", end="")
@@ -95,9 +98,9 @@ class Board:
                 else:
                     print("| ", end="")
             print("|")
-        print("--" * self.width + "-")
+        print("--" * width + "-")
         print(' ', end='')
-        for i in range(self.width):
+        for i in range(width):
             print(f' {i}', end='')
         print('')
 
@@ -427,8 +430,33 @@ class Board:
         return True
 
     def border_closing(self) -> None:
-        raise NotImplementedError
+        top_row = self.board[0]
+        bottom_row = self.board[-1]
 
+        for tile in top_row + bottom_row:
+            if tile.character is not None:
+                tile.character.health = 0
+
+        self.board.pop(0)
+        self.board.pop(-1)
+
+        for row in self.board:
+            if row[0].character is not None:
+                row[0].character.health = 0
+            if row[-1].character is not None:
+                row[-1].character.health = 0
+            row.pop(0)
+            row.pop(-1)
+
+        self.height = len(self.board)
+        self.width = len(self.board[0])
+
+    def testing_fill_board(self, missing: Tuple[int, int] = (-1, -1)):
+        for i in range(self.height):
+            for j in range(self.width):
+                if (j, i) == missing:
+                    continue
+                self.board[i][j].terrain = 'empty'
 
 
 if __name__ == '__main__':
@@ -437,4 +465,6 @@ if __name__ == '__main__':
     b.create_base_p2((6, 0))
     b.create_big_road(1, (1, 5))
     b.create_big_road(2, (5, 0), (5, 1))
+    b.print()
+    b.testing_fill_board((3, 0))
     b.print()

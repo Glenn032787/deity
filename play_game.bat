@@ -1,3 +1,5 @@
-python %cd%\deity.py %*
+python deity.py
+
+
 @pause
 

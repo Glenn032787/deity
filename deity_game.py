@@ -2,14 +2,11 @@ from deity_board import Board
 from deity_character import Character
 from deity_error import *
 from deity_setting import *
+
 from typing import List, Tuple, Dict, Union
 from random import shuffle
 
 POSSIBLE_ACTION = {'move', 'spell', 'attack', 'info', 'skip'}
-
-TILE_DECK = (['fort'] * NUM_FORT) + (['water'] * NUM_WATER) + \
-            (['mountain'] * NUM_MOUNTAIN) + (['forest'] * NUM_FOREST) + \
-            (['faith'] * NUM_FAITH)
 
 
 class Player:
@@ -17,7 +14,7 @@ class Player:
     character: Dict[int, Character]
     number: int
     faith: int
-    tile_deck = TILE_DECK.copy()
+    tile_deck = []
 
     def __init__(self, name, number):
         self.name = name
@@ -31,8 +28,10 @@ class Player:
 
     def print(self) -> None:
         result = f'{self.name} (Faith: {self.faith})\n    '
+        live = self.live_character()
         for i in self.character:
-            result += f'{i}: {self.character[i]}  '
+            if self.character[i] in live:
+                result += f'{i}: {self.character[i]}  '
         print(result)
 
     def can_move(self):
@@ -73,13 +72,18 @@ class Player:
 class Deity:
     def __init__(self):
         self.turn = 0
+        self.ragnarok = False
+        self.ragnarok_timer = None
+
         self.board = Board(BOARD_WIDTH, BOARD_HEIGHT)
 
         # Create Players
         p1_name = input('Enter name of player 1: ')
         self.player1 = Player(p1_name, 1)
+        self.player1.tile_deck = P1_TILE_DECK
         p2_name = input('Enter name of player 2: ')
         self.player2 = Player(p2_name, 2)
+        self.player2.tile_deck = P2_TILE_DECK
 
     def play(self, test: bool = False):
         # Set up game
@@ -103,7 +107,7 @@ class Deity:
             while action_left != 0:
                 print(f'\n{p.name}: {action_left} action remaining')
                 while True:
-                    self.remove_character() # Removes dead character
+                    self.remove_character()  # Removes dead character
                     action = input('Choose action (move, '
                                    'attack, spell, info, skip): ')
                     action = action.lower()
@@ -118,7 +122,7 @@ class Deity:
                             self.move(p)
                             action_left -= 1
                             break
-                        except NoCharacterToMove:
+                        except (NoCharacterToMove, ReturnError):
                             continue
 
                     # Attack using character
@@ -146,11 +150,32 @@ class Deity:
             if self.check_win() is not None:
                 break
 
-            # End of turn mechanism
+            # End of turn mechanics
             self.place_tile(p)
+            self.shrink_board()  # Shrink board if ragnarok
+            self.start_ragnarok()  # Start ragnarok if board is full
             self.turn += 1
             print('Next player turn')
+
+        # End of game
         print(f'{self.check_win().name.upper()} IS THE WINNER')
+
+    def shrink_board(self):
+        if self.ragnarok and self.board.height > 2 and self.board.width > 2:
+            if self.ragnarok_timer == 0:
+                self.board.border_closing()
+                self.ragnarok_timer = 1
+                self.print()
+                print('The border has shrunk!!!')
+            else:
+                self.ragnarok_timer -= 1
+
+    def start_ragnarok(self):
+        if self.board.check_full_board() and not self.ragnarok:
+            print('\nRagnarok has started, the board will shrink '
+                  'after each round!!!\n')
+            self.ragnarok = True
+            self.ragnarok_timer = 1
 
     def info(self):
         self.print()
@@ -162,7 +187,7 @@ class Deity:
                 char = all_char[int(deity_id)]
                 print(char.get_info())
                 break
-            except IndexError:
+            except (IndexError, KeyError):
                 print('Not valid id')
                 continue
             except ValueError:
@@ -232,7 +257,7 @@ class Deity:
             print(f'\nDeities in range of {curr_char}: ')
             attack_message = "  "
             for char in opponent_in_range:
-                attack_message += f"{char.id} - {char}    "
+                attack_message += f"{char.id} - {char} (Health:{char.health})    "
             print(attack_message)
 
             attack_id = input('Pick deity to attack (type id or cancel): ')
@@ -273,7 +298,10 @@ class Deity:
                                f"(movement: {char.movement})        "
             print(char_string)
             char_id = input('Pick a deity to move (type '
-                            'id): ')
+                            'id or cancel): ')
+            if char_id == 'cancel':
+                raise ReturnError
+
             try:
                 curr_char = p.character[int(char_id)]
             except KeyError:
@@ -535,6 +563,12 @@ class Deity:
                 pass
 
         while len(drawn) > 0:
+            if self.board.check_full_board():
+                num_faith = drawn.count('faith')
+                print(f'The board is full, you have automatically '
+                      f'picked up {num_faith} faith')
+                p.faith += num_faith
+                break
             tile_message = 'Tiles drawn:\n      '
             for i in range(len(drawn)):
                 tile_message += f'{i} - {drawn[i]}     '
@@ -687,9 +721,3 @@ if __name__ == "__main__":
     b.board[1][1].character = d.player2.character[4]
 
     d.play(True)
-
-# TODO Sudden death
-# TODO Shrinking ring insta dead
-# TODO Sudden death auto draw faith
-
-
