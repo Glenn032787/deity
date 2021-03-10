@@ -68,3 +68,21 @@ class ReturnError(Exception):
     def __str__(self):
         error = "Return to previous question"
         return error
+
+
+class NotEnoughFaith(Exception):
+    def __str__(self):
+        error = 'Not enough faith for this ability'
+        return error
+
+
+class NoCharacterToSpell(Exception):
+    def __str__(self):
+        error = 'No characters left to use faith ability'
+        return error
+
+
+class FaithAbilityError(Exception):
+    def __str__(self):
+        error = 'Error in faith ability'
+        return error

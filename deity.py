@@ -14,13 +14,24 @@ def preset_game():
     b.create_base_p2((5, 0))
     b.create_big_road(1, (2, 5))
     b.create_big_road(2, (5, 2))
+    while True:
+        confirm = input('Unlimited faith? (y/n) ')
+        try:
+            confirm = confirm.lower()
+            assert confirm in ['y', 'n']
+            break
+        except (ValueError, AssertionError):
+            print('Type y or n')
+            continue
+    if confirm == 'y':
+        d.player1.faith = float('inf')
+        d.player2.faith = float('inf')
 
     d.board = b
     d.choose_character()
-    b.board[6][1].character = d.player1.character[1]
-    b.board[6][2].character = d.player1.character[2]
-    b.board[1][5].character = d.player2.character[3]
-    b.board[1][6].character = d.player2.character[4]
+    d.print()
+    d.spawn_character(d.player1)
+    d.spawn_character(d.player2)
     d.print()
     d.play(True)
 
@@ -42,6 +53,8 @@ def ragnarok():
     b.board[1][1].character = d.player2.character[4]
     d.print()
     d.play(True)
+
+
 
 
 if __name__ == '__main__':

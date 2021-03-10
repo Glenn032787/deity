@@ -3,7 +3,7 @@ from deity_character import Character
 from deity_error import *
 
 TERRAIN_TYPES = ['fort', 'forest', 'water',
-                 'mountain', 'empty', 'base', 'faith']
+                 'cloud', 'empty', 'base', 'faith']
 
 
 class Tile:
@@ -91,8 +91,8 @@ class Board:
                     print("|F", end="")
                 elif self.board[i][j].terrain == 'water':
                     print("|W", end="")
-                elif self.board[i][j].terrain == 'mountain':
-                    print("|M", end="")
+                elif self.board[i][j].terrain == 'cloud':
+                    print("|S", end="")
                 elif self.board[i][j].terrain == 'faith':
                     print("|$", end="")
                 else:
@@ -200,10 +200,7 @@ class Board:
         if not self._possible_tile(new_coord):
             raise NotValidMove
 
-        # Check new_coord is adjacent to old coordinate
         old_coord = self.get_char_location(char)
-        if new_coord not in self.adjacent_tiles(old_coord):
-            raise NotValidMove
 
         # Check if new_coord already has a character
         if self.board[new_coord[1]][new_coord[0]].character is not None:

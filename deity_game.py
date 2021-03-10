@@ -2,8 +2,9 @@ from deity_board import Board
 from deity_character import Character
 from deity_error import *
 from deity_setting import *
+from deity_helper_function import *
 
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict, Union, Callable
 from random import shuffle
 
 POSSIBLE_ACTION = {'move', 'spell', 'attack', 'info', 'skip'}
@@ -31,7 +32,8 @@ class Player:
         live = self.live_character()
         for i in self.character:
             if self.character[i] in live:
-                result += f'{i}: {self.character[i]}  '
+                result += f'{i}: {self.character[i]} ' \
+                          f'(Health: {self.character[i].health})  '
         print(result)
 
     def can_move(self):
@@ -47,6 +49,13 @@ class Player:
             if not char.has_attack:
                 char_attack.append(char)
         return char_attack
+
+    def can_spell(self):
+        char_spell = []
+        for char in self.live_character():
+            if not char.has_spell:
+                char_spell.append(char)
+        return char_spell
 
     def live_character(self) -> List[Character]:
         live = []
@@ -67,6 +76,11 @@ class Player:
             char.has_moved = False
             char.has_spell = False
             char.has_attack = False
+
+    def reduce_status_effect(self) -> None:
+        for char in self.live_character():
+            for effect in char.get_status_effects():
+                char.status_effect[effect] -= 1
 
 
 class Deity:
@@ -100,6 +114,7 @@ class Deity:
             action_left = MOVES_PER_TURN
             self.add_faith(p)
             self.destroy_base(p)
+            self.passive('start_turn')
             if self.check_win():
                 break
 
@@ -134,6 +149,15 @@ class Deity:
                         except (NoCharacterToAttack, ReturnError):
                             continue
 
+                    # Use faith ability
+                    elif action == 'spell':
+                        try:
+                            self.spell(p)
+                            action_left -= 1
+                            break
+                        except (NoCharacterToSpell, ReturnError):
+                            continue
+
                     # Get info on character (Doesn't use an action)
                     elif action == 'info':
                         self.info()
@@ -152,6 +176,7 @@ class Deity:
 
             # End of turn mechanics
             self.place_tile(p)
+            p.reduce_status_effect()
             self.shrink_board()  # Shrink board if ragnarok
             self.start_ragnarok()  # Start ragnarok if board is full
             self.turn += 1
@@ -194,24 +219,23 @@ class Deity:
                 print('Please type in deity id')
                 continue
 
-    def attack(self, p: Player):
-        char_attack = p.can_attack()
+    def spell(self, p: Player):
+        char_spell = p.can_spell()
 
-        if len(char_attack) == 0:
+        if len(char_spell) == 0:
             print('No deities can attack')
-            raise NoCharacterToAttack
+            raise NoCharacterToSpell
         self.print()
         while True:
             # Ask which character used to attack
-            print('\nDeities that can attack:')
+            print('\nDeities that can use their faith ability:')
             char_string = ' '
-            for char in char_attack:
-                char_string += f"{char.id} - {char} " \
-                               f"(range: {char.range})       "
+            for char in char_spell:
+                char_string += f"{char.id} - {char}         "
             print(char_string)
 
-            char_id = input('Pick a deity to attack '
-                            '(type deity id or cancel):')
+            char_id = input('Pick a deity to use faith ability '
+                            '(type deity id or cancel): ')
             char_id = char_id.lower()
             if char_id == 'cancel':
                 raise ReturnError
@@ -224,8 +248,69 @@ class Deity:
             except ValueError:
                 print('Please type deity id')
                 continue
+            if curr_char not in char_spell:
+                print('Not a valid deity, pick again')
+                continue
+            if 'stun' in curr_char.get_status_effects():
+                self.print()
+                print(f'\n{curr_char} is stun')
+                continue
+
+            coord = self.board.get_char_location(curr_char)
+            tile = self.board.get_tile(coord)
+
+            try:
+                if curr_char.attribute == 'aquatic' and tile.terrain == 'water':
+                    curr_char.faith_ability(p, self, 1)  # 1 faith discount
+                    tile.terrain = 'empty'
+                else:
+                    curr_char.faith_ability(p, self)
+                curr_char.has_spell = True
+                break
+            except (NotEnoughFaith, ReturnError, FaithAbilityError):
+                continue
+
+    def attack(self, p: Player):
+        char_attack = p.can_attack()
+
+        if len(char_attack) == 0:
+            print('No deities can attack')
+            raise NoCharacterToAttack
+        self.print()
+        # Ask which character used to attack
+        while True:
+            print('\nDeities that can attack:')
+            char_string = ' '
+            for char in char_attack:
+                char_string += f"{char.id} - {char} " \
+                               f"(range: {char.range})       "
+            print(char_string)
+
+            char_id = input('Pick a deity to attack '
+                            '(type deity id or cancel): ')
+            char_id = char_id.lower()
+            if char_id == 'cancel':
+                raise ReturnError
+            # Check if valid character input
+            try:
+                curr_char = p.character[int(char_id)]
+            except (KeyError, ValueError):
+                self.print()
+                print('Not a valid deity, pick again')
+                continue
+
             if curr_char not in char_attack:
                 print('Not a valid deity, pick again')
+                continue
+
+            if 'disarm' in curr_char.get_status_effects():
+                self.print()
+                print(f'{curr_char} is disarmed this turn')
+                continue
+
+            if 'stun' in curr_char.get_status_effects():
+                self.print()
+                print(f'\n{curr_char} is stun')
                 continue
 
             # Get range and coordinates of character
@@ -233,7 +318,8 @@ class Deity:
             range_ = curr_char.range
             terrain = self.board.get_tile(p1_coord).terrain
 
-            if (terrain == 'fort' or terrain == 'base') and not curr_char.fly:
+            if (terrain == 'fort' or terrain == 'base') and \
+                    curr_char.attribute != 'flight':
                 range_ += 1
 
             # Check if character is in range to attack other character
@@ -241,7 +327,7 @@ class Deity:
             opponent_in_range = []
             for char in opponent.live_character():
                 p2_coord = self.board.get_char_location(char)
-                if _distance(p1_coord, p2_coord) <= range_:
+                if distance(p1_coord, p2_coord) <= range_:
                     opponent_in_range.append(char)
 
             if len(opponent_in_range) == 0:
@@ -277,8 +363,7 @@ class Deity:
             break
 
         # Attack target
-        curr_char.attack(opponent_char)
-        curr_char.has_attack = True
+        curr_char.attack(opponent_char, self, p)
 
     def move(self, p: Player) -> None:
         char_move = p.can_move()
@@ -288,9 +373,9 @@ class Deity:
             print('No deities can move')
             raise NoCharacterToMove
 
+        self.print()
         # Ask for player for character to move
         while True:
-            self.print()
             print('\nDeities to move:')
             char_string = ' '
             for char in char_move:
@@ -304,20 +389,33 @@ class Deity:
 
             try:
                 curr_char = p.character[int(char_id)]
-            except KeyError:
-                print('Not a valid deity, pick again')
-                continue
-            except ValueError:
-                print('Please type deity id')
+            except (KeyError, ValueError):
+                self.print()
+                print('Not a valid deity id, pick again')
                 continue
 
             if curr_char not in char_move:
+                self.print()
                 print('Not a valid deity, pick again')
+                continue
+
+            if 'stun' in curr_char.get_status_effects():
+                self.print()
+                print(f'\n{curr_char} is stun')
                 continue
             break
 
         self.print()
         movement_left = curr_char.movement
+
+        char_coord = self.board.get_char_location(curr_char)
+        tile = self.board.get_tile(char_coord)
+        if curr_char.attribute == 'flight' and tile.terrain == 'cloud':
+            movement_left += 1
+
+        if 'grounded' in curr_char.get_status_effects():
+            print(f'\n{curr_char} is grounded')
+            movement_left = 1
         # Repeatedly ask player to move character based on character movement
         while movement_left > 0:
             # Get location of character and adjacent tiles
@@ -333,7 +431,10 @@ class Deity:
                 if move_to == 'skip':
                     movement_left = 0
                     break
-                move_to = _turn_into_coordinate(move_to)
+                try:
+                    move_to = turn_into_coordinate(move_to)
+                except ValueError:
+                    print('Not valid move')
 
                 # Check if chosen coord is adjacent to character
                 if move_to not in adjacent:
@@ -342,13 +443,14 @@ class Deity:
 
                 # Check tile terrain and if character can move to it
                 tile_terrain = self.board.get_terrain(move_to)
-                if tile_terrain == 'mountain' and not curr_char.fly:
+                if tile_terrain == 'cloud' and \
+                        curr_char.attribute != 'flight':
                     print(
                         f"\n{curr_char} can't fly, only flying deity "
-                        f"can enter mountain tile")
+                        f"can enter cloud tile")
                     continue
                 elif tile_terrain == 'water' and \
-                        not curr_char.fly and not curr_char.swim:
+                        curr_char.attribute not in ['flight', 'aquatic']:
                     print(
                         f"\n{curr_char} can't fly or swim, only "
                         f"flying or swimming deity can "
@@ -419,7 +521,7 @@ class Deity:
             try:
                 p1_base = input(f'{self.player1.name} (P1) choose '
                                 f'base (separate x, y by comma): ')
-                p1_base = _turn_into_coordinate(p1_base)
+                p1_base = turn_into_coordinate(p1_base)
                 self.board.create_base_p1(p1_base)
                 break
             except IndexError:
@@ -438,7 +540,7 @@ class Deity:
             try:
                 p2_base = input(f'{self.player2.name} (P2) choose base '
                                 f'(separate x, y by comma): ')
-                p2_base = _turn_into_coordinate(p2_base)
+                p2_base = turn_into_coordinate(p2_base)
                 self.board.create_base_p2(p2_base)
                 break
             except IndexError:
@@ -479,14 +581,21 @@ class Deity:
                 continue
 
     def choose_character(self) -> None:
-        subclass = Character.__subclasses__()
+        subclass_p1 = []
+        subclass_p2 = []
+        for class_ in Character.__subclasses__():
+            subclass_p1 += class_.__subclasses__()
+            subclass_p2 += class_.__subclasses__()
+
         for i in range(MAX_CHARACTER):
-            p1_character, subclass = _list_character_remaining(subclass,
-                                                               self.player1)
+            p1_character, subclass_p1 = self._list_character_remaining(
+                subclass_p1,
+                self.player1)
             self.player1.add_character(p1_character(i + 1))
 
-            p2_character, subclass = _list_character_remaining(subclass,
-                                                               self.player2)
+            p2_character, subclass_p2 = self._list_character_remaining(
+                subclass_p2,
+                self.player2)
             self.player2.add_character(p2_character(i + 1 + MAX_CHARACTER))
 
     def spawn_character(self, player: Player) -> None:
@@ -499,7 +608,7 @@ class Deity:
                           f'base: {base_tiles_left}')
                     tile = input(f'{player.name} choose base tile '
                                  f'to spawn {character}: ')
-                    tile = _turn_into_coordinate(tile)
+                    tile = turn_into_coordinate(tile)
                     self.board.spawn_character(character, tile, player.number)
                     base_tiles_left.remove(tile)
                     self.board.print()
@@ -609,7 +718,7 @@ class Deity:
                     self.print()
                     coord = input(f'Choose coordinate to place {tile_final} '
                                   '(must be adjacent to another tile): ')
-                    coord = _turn_into_coordinate(coord)
+                    coord = turn_into_coordinate(coord)
                     if not self.board.valid_tile_placement(coord):
                         print('Not valid tile placement, must be adjacent '
                               'to an existing tile')
@@ -650,58 +759,54 @@ class Deity:
             if not char.is_live():
                 self.board.remove_character(char)
 
+    def passive(self, time: str):
+        p = self.player_turn()
+        all_char = self.player1.live_character() + self.player2.live_character()
 
-# === Helper Functions ===
+        for char in all_char:
+            char.passive_ability(time, p, self)
 
-def _list_character_remaining(subclass: List[Character], player: Player) -> \
-        Tuple[Character, List[Character]]:
-    """
-    Helper function for Deity.choose_character. Print remaining
-    subclasses (Deity) and prompt player to choose one of the characters.
-    Return character class chosen and the remaining subclasses
+    # HELPER FUNCTIONS
+    def _list_character_remaining(self, subclass: List[Character],
+                                  player: Player) -> \
+            Tuple[Callable, List[Character]]:
+        """
+        Helper function for Deity.choose_character. Print remaining
+        subclasses (Deity) and prompt player to choose one of the characters.
+        Return character class chosen and the remaining subclasses
 
-    :param subclass: Remaining subclass that the Player will choose from
-    :param player: Player choosing the subclass
-    :return: Character class chosen by player and remaining subclasses
-    """
-    remaining_class = '\nAvailable Deities\n'
-    for id_ in range(len(subclass)):
-        remaining_class += f'{subclass[id_].__name__} -- {id_} \n'
-    print(remaining_class)
+        :param subclass: Remaining subclass that the Player will choose from
+        :param player: Player choosing the subclass
+        :return: Character class chosen by player and remaining subclasses
+        """
+        remaining_class = '\nAvailable Deities\n'
+        for id_ in range(len(subclass)):
+            remaining_class += f'{id_} -- {subclass[id_].__name__.replace("_", " ")}  \n'
+        print(remaining_class)
 
-    while True:
-        try:
-            char_index = int(input(f'{player.name} choose deity '
-                                   f'(Type number): '))
-            character = subclass[char_index]
-            subclass.remove(subclass[char_index])
-            return character, subclass
-        except (IndexError, ValueError):
-            print('Please choose a valid deity')
-            continue
+        current_char = ''
+        for i in self.player1.character:
+            current_char += str(self.player1.character[i]) + ', '
+        current_char = current_char[:-2]
 
+        print(f'{self.player1.name} team: {current_char}')
 
-def _turn_into_coordinate(coord_str: str) -> Tuple[int, int]:
-    """
-    Used to change player input of coordinate from string to tuple
+        current_char = ''
+        for i in self.player2.character:
+            current_char += str(self.player2.character[i]) + ', '
+        current_char = current_char[:-2]
 
-    :param coord_str: String version of coordinate separated by comma (e.g 1,2)
-    :return: Return tuple representation of coordinate (e.g (1,2))
-    """
-    coord_str = coord_str.replace(' ', '')
-    coord_str = coord_str.split(',')
-    coord_tuple = (int(coord_str[0]), int(coord_str[1]))
-    return coord_tuple
-
-
-def _distance(coord1: Tuple[int, int], coord2: Tuple[int, int]) -> int:
-    x1 = coord1[0]
-    y1 = coord1[1]
-    x2 = coord2[0]
-    y2 = coord2[1]
-    x_dif = abs(x1 - x2)
-    y_dif = abs(y1 - y2)
-    return x_dif + y_dif
+        print(f'{self.player2.name} team: {current_char}')
+        while True:
+            try:
+                char_index = int(input(f'{player.name} choose deity '
+                                       f'(Type number): '))
+                character = subclass[char_index]
+                subclass.remove(subclass[char_index])
+                return character, subclass
+            except (IndexError, ValueError):
+                print('Please choose a valid deity')
+                continue
 
 
 if __name__ == "__main__":
@@ -712,12 +817,16 @@ if __name__ == "__main__":
     b.create_big_road(1, (1, 5))
     b.create_big_road(2, (1, 2))
     b.print()
-
+    d.player1.faith = 10
+    d.player2.faith = 10
     d.board = b
     d.choose_character()
-    b.board[3][1].character = d.player1.character[1]
-    b.board[4][1].character = d.player2.character[3]
-    b.board[0][0].character = d.player1.character[2]
+    d.print()
+    b.board[7][1].character = d.player1.character[1]
+    b.board[7][2].character = d.player1.character[2]
+    b.board[6][1].character = d.player1.character[3]
     b.board[1][1].character = d.player2.character[4]
+    b.board[1][0].character = d.player2.character[5]
+    b.board[0][1].character = d.player2.character[6]
 
     d.play(True)

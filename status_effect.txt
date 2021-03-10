@@ -1,0 +1,7 @@
+disarmed: Cannot attack next turn
+    - Zeus (Kidnap)
+stun: Cannot make action (attack, move, spell)
+    - Neptune (Earthquake)
+grounded: 1 movement only
+    - Zeus (The chase)
+
