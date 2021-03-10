@@ -1,5 +1,0 @@
-python deity.py
-
-
-@pause
-
