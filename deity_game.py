@@ -112,7 +112,6 @@ class Deity:
             # Start of turn mechanism
             p.reset_character()
             action_left = MOVES_PER_TURN
-            self.add_faith(p)
             self.destroy_base(p)
             self.passive('start_turn')
             if self.check_win():
@@ -176,6 +175,7 @@ class Deity:
 
             # End of turn mechanics
             self.place_tile(p)
+            self.add_faith(p)
             p.reduce_status_effect()
             self.shrink_board()  # Shrink board if ragnarok
             self.start_ragnarok()  # Start ragnarok if board is full
@@ -258,14 +258,21 @@ class Deity:
 
             coord = self.board.get_char_location(curr_char)
             tile = self.board.get_tile(coord)
-
+            opponent = self.opponent(p)
             try:
+                before_spell_char = opponent.live_character()
                 if curr_char.attribute == 'aquatic' and tile.terrain == 'water':
                     curr_char.faith_ability(p, self, 1)  # 1 faith discount
                     tile.terrain = 'empty'
                 else:
                     curr_char.faith_ability(p, self)
                 curr_char.has_spell = True
+
+                # Prints deity which has been killed during
+                after_spell_char = opponent.live_character()
+                for live_char in before_spell_char:
+                    if live_char not in after_spell_char:
+                        print(f'{live_char} has been killed')
                 break
             except (NotEnoughFaith, ReturnError, FaithAbilityError):
                 continue
@@ -294,7 +301,8 @@ class Deity:
             # Check if valid character input
             try:
                 curr_char = p.character[int(char_id)]
-            except (KeyError, ValueError):
+                assert curr_char in p.live_character()
+            except (KeyError, ValueError, AssertionError):
                 self.print()
                 print('Not a valid deity, pick again')
                 continue
@@ -354,10 +362,8 @@ class Deity:
             try:
                 attack_id = int(attack_id)
                 opponent_char = opponent.character[attack_id]
-            except ValueError:
-                print('Please type deity id')
-                continue
-            except IndexError:
+                assert opponent_char in opponent.live_character()
+            except (ValueError, IndexError, AssertionError):
                 print('Not valid id, please type again')
                 continue
             break

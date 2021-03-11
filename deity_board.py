@@ -86,13 +86,13 @@ class Board:
                 elif self.board[i][j].terrain == 'empty':
                     print("|O", end="")
                 elif self.board[i][j].terrain == 'fort':
-                    print("|C", end="")
+                    print("|M", end="")
                 elif self.board[i][j].terrain == 'forest':
                     print("|F", end="")
                 elif self.board[i][j].terrain == 'water':
                     print("|W", end="")
                 elif self.board[i][j].terrain == 'cloud':
-                    print("|S", end="")
+                    print("|C", end="")
                 elif self.board[i][j].terrain == 'faith':
                     print("|$", end="")
                 else:

@@ -21,7 +21,7 @@ class Character:
         self.has_attack = False
         self.has_spell = False
         self.attribute = attribute  # flight, aquatic or None
-        self.status_effect = {'disarm': 0, 'blinded': 0,
+        self.status_effect = {'disarmed': 0, 'blinded': 0,
                               'slowed': 0, 'stun': 0, 'grounded': 0}
 
     def __eq__(self, other):
