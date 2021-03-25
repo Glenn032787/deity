@@ -48,9 +48,11 @@ def ragnarok():
     d.board = b
     d.choose_character()
     b.board[3][3].character = d.player1.character[1]
-    b.board[4][3].character = d.player2.character[3]
+    b.board[4][3].character = d.player2.character[4]
     b.board[1][3].character = d.player1.character[2]
-    b.board[1][1].character = d.player2.character[4]
+    b.board[1][1].character = d.player2.character[5]
+    b.board[5][5].character = d.player1.character[3]
+    b.board[2][2].character = d.player2.character[6]
     d.print()
     d.play(True)
 

@@ -8,6 +8,8 @@ from typing import List, Tuple, Dict, Union, Callable
 from random import shuffle
 
 POSSIBLE_ACTION = {'move', 'spell', 'attack', 'info', 'skip'}
+PASSIVE_ABILITY_TRIGGER = ['start_turn', 'collect_faith', 'after_movement',
+                           'take_damage_attack', 'take_damage_spell', 'end_turn']
 
 
 class Player:
@@ -15,13 +17,15 @@ class Player:
     character: Dict[int, Character]
     number: int
     faith: int
-    tile_deck = []
+    tile_deck = list
 
     def __init__(self, name, number):
         self.name = name
         self.character = {}
         self.number = number
         self.faith = 0
+        self.tile_deck = []
+        self.additional_action = {'add': 0, 'sub': 0}
 
     def add_character(self, character: Character) -> None:
         if len(self.character) < MAX_CHARACTER:
@@ -33,7 +37,7 @@ class Player:
         for i in self.character:
             if self.character[i] in live:
                 result += f'{i}: {self.character[i]} ' \
-                          f'(Health: {self.character[i].health})  '
+                          f'({self.character[i].health}/{self.character[i].max_health})  '
         print(result)
 
     def can_move(self):
@@ -80,8 +84,20 @@ class Player:
     def reduce_status_effect(self) -> None:
         for char in self.live_character():
             for effect in char.get_status_effects():
+                if char.status_effect == 1:
+                    print(f'{char} is no longer {effect}')
                 char.status_effect[effect] -= 1
 
+    def get_additional_action(self) -> int:
+        action = 0
+        if self.additional_action['add'] > 0:
+            action += 1
+            self.additional_action['add'] -= 1
+
+        if self.additional_action['sub'] > 0:
+            action -= 1
+            self.additional_action['sub'] -= 1
+        return action
 
 class Deity:
     def __init__(self):
@@ -111,7 +127,7 @@ class Deity:
 
             # Start of turn mechanism
             p.reset_character()
-            action_left = MOVES_PER_TURN
+            action_left = MOVES_PER_TURN + p.get_additional_action()
             self.destroy_base(p)
             self.passive('start_turn')
             if self.check_win():
@@ -119,6 +135,7 @@ class Deity:
 
             # Player makes their actions
             while action_left != 0:
+                self.print()
                 print(f'\n{p.name}: {action_left} action remaining')
                 while True:
                     self.remove_character()  # Removes dead character
@@ -174,6 +191,7 @@ class Deity:
                 break
 
             # End of turn mechanics
+            self.passive('end_turn')
             self.place_tile(p)
             self.add_faith(p)
             p.reduce_status_effect()
@@ -255,6 +273,11 @@ class Deity:
                 self.print()
                 print(f'\n{curr_char} is stun')
                 continue
+            if 'mummified' in curr_char.get_status_effects():
+                self.print()
+                print(f'\n{curr_char} is mummified for '
+                      f'{curr_char.status_effect["mummified"]} turns')
+                continue
 
             coord = self.board.get_char_location(curr_char)
             tile = self.board.get_tile(coord)
@@ -319,6 +342,12 @@ class Deity:
             if 'stun' in curr_char.get_status_effects():
                 self.print()
                 print(f'\n{curr_char} is stun')
+                continue
+
+            if 'mummified' in curr_char.get_status_effects():
+                self.print()
+                print(f'\n{curr_char} is mummified for '
+                      f'{curr_char.status_effect["mummified"]} turns')
                 continue
 
             # Get range and coordinates of character
@@ -409,6 +438,12 @@ class Deity:
                 self.print()
                 print(f'\n{curr_char} is stun')
                 continue
+
+            if 'mummified' in curr_char.get_status_effects():
+                self.print()
+                print(f'\n{curr_char} is mummified for '
+                      f'{curr_char.status_effect["mummified"]} turns')
+                continue
             break
 
         self.print()
@@ -418,6 +453,13 @@ class Deity:
         tile = self.board.get_tile(char_coord)
         if curr_char.attribute == 'flight' and tile.terrain == 'cloud':
             movement_left += 1
+
+        if 'vigor' in curr_char.get_status_effects():
+            print(f'\n{curr_char} has +1 movement')
+            movement_left += 1
+        if 'slowed' in curr_char.get_status_effects():
+            print(f'\n{curr_char} has -1 movement')
+            movement_left -= 1
 
         if 'grounded' in curr_char.get_status_effects():
             print(f'\n{curr_char} is grounded')
@@ -450,13 +492,15 @@ class Deity:
                 # Check tile terrain and if character can move to it
                 tile_terrain = self.board.get_terrain(move_to)
                 if tile_terrain == 'cloud' and \
-                        curr_char.attribute != 'flight':
+                        curr_char.attribute != 'flight' and \
+                        'mobile' not in curr_char.get_status_effects():
                     print(
                         f"\n{curr_char} can't fly, only flying deity "
                         f"can enter cloud tile")
                     continue
                 elif tile_terrain == 'water' and \
-                        curr_char.attribute not in ['flight', 'aquatic']:
+                        curr_char.attribute not in ['flight', 'aquatic'] and \
+                        'mobile' not in curr_char.get_status_effects():
                     print(
                         f"\n{curr_char} can't fly or swim, only "
                         f"flying or swimming deity can "
@@ -497,6 +541,8 @@ class Deity:
                         print('\nNot valid move')
                         continue
                 break
+            curr_char.passive_ability('after_movement', self.player_turn(),
+                                      self)
             curr_char.has_moved = True
 
     def set_up(self) -> None:
@@ -656,6 +702,7 @@ class Deity:
         for char in player.live_character():
             coord = self.board.get_char_location(char)
             if self.board.get_terrain(coord) == 'faith':
+                char.passive_ability('collect_faith', player, self)
                 faith += 1
                 self.board.change_to_road(coord)  # Remove faith tile
         player.faith += faith
@@ -770,6 +817,8 @@ class Deity:
         all_char = self.player1.live_character() + self.player2.live_character()
 
         for char in all_char:
+            if 'mummified' in char.get_status_effects():
+                continue
             char.passive_ability(time, p, self)
 
     # HELPER FUNCTIONS

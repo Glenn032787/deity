@@ -175,8 +175,8 @@ class Board:
             adjacent.append((x, y + 1))
         return adjacent
 
-    def _possible_tile(self,
-                       coord: Union[Tuple[int, int], List[Tuple]]) -> bool:
+    def possible_tile(self,
+                      coord: Union[Tuple[int, int], List[Tuple]]) -> bool:
         if isinstance(coord, tuple):
             y = coord[1]
             x = coord[0]
@@ -197,7 +197,7 @@ class Board:
     def move_character(self, char: Character,
                        new_coord: Tuple[int, int]) -> None:
         # Check new_coord is within coordinate
-        if not self._possible_tile(new_coord):
+        if not self.possible_tile(new_coord):
             raise NotValidMove
 
         old_coord = self.get_char_location(char)
@@ -306,7 +306,7 @@ class Board:
 
             # Check if adjacent tile that are bases
             for adjacent_tile in adjacent:
-                if adjacent_tile not in base_tiles and self._possible_tile(
+                if adjacent_tile not in base_tiles and self.possible_tile(
                         tile):
                     all_adjacent_tiles.add(adjacent_tile)
         return list(all_adjacent_tiles)
@@ -340,13 +340,13 @@ class Board:
             elif x1 == x2 and abs(y1 - y2) == 1:
                 left = [(x1 - 1, y1), (x2 - 1, y2)]
                 right = [(x1 + 1, y1), (x2 + 1, y2)]
-                if self._possible_tile(left) and \
+                if self.possible_tile(left) and \
                         not (any(item in left for item in base_tiles)):
                     self.add_terrain(coord1, 'empty')
                     self.add_terrain(coord2, 'empty')
                     self.add_terrain(left[0], 'empty')
                     self.add_terrain(left[1], 'empty')
-                elif self._possible_tile(right) and \
+                elif self.possible_tile(right) and \
                         not (any(item in right for item in base_tiles)):
                     self.add_terrain(coord1, 'empty')
                     self.add_terrain(coord2, 'empty')
@@ -384,7 +384,7 @@ class Board:
 
         adjacent_check = not (any(item in tiles for item in adjacent_tiles))
         base_check = not (any(item in tiles for item in base_tiles))
-        possible_check = self._possible_tile(tiles)
+        possible_check = self.possible_tile(tiles)
         return adjacent_check and base_check and possible_check
 
     def check_dead_base(self, player: int) -> int:

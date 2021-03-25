@@ -86,3 +86,9 @@ class FaithAbilityError(Exception):
     def __str__(self):
         error = 'Error in faith ability'
         return error
+
+
+class NotValidStatusEffect(Exception):
+    def __str__(self):
+        error = 'Not a valid status effect'
+        return error
